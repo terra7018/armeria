@@ -18,6 +18,7 @@ package com.linecorp.armeria.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -124,12 +125,7 @@ class ServerListenerTest {
                                     .build();
         server.start().get();
         stopFuture = server.stop();
-        int retryCnt = 4;
-        while (retryCnt > 0 && isTerminationExpected && !executor.isTerminated()) {
-            Thread.sleep(1000);
-            retryCnt -= 1;
-        }
-        assertThat(executor.isTerminated()).isEqualTo(isTerminationExpected);
+        assertExecutorTermination(executor, isTerminationExpected);
         task.cancel();
         stopFuture.get();
     }
@@ -152,14 +148,17 @@ class ServerListenerTest {
                                     .build();
         server.start().get();
         stopFuture = server.stop();
-        int retryCnt = 4;
-        while (retryCnt > 0 && isTerminationExpected && !executor.isTerminated()) {
-            Thread.sleep(1000);
-            retryCnt -= 1;
-        }
-        assertThat(executor.isTerminated()).isEqualTo(isTerminationExpected);
+        assertExecutorTermination(executor, isTerminationExpected);
         task.cancel();
         stopFuture.get();
+    }
+
+    private static void assertExecutorTermination(ExecutorService executor, boolean isTerminationExpected) {
+        if (isTerminationExpected) {
+            await().untilAsserted(() -> assertThat(executor.isTerminated()).isTrue());
+        } else {
+            assertThat(executor.isTerminated()).isFalse();
+        }
     }
 
     private static class CancellableExecutorsProvider implements ArgumentsProvider {
