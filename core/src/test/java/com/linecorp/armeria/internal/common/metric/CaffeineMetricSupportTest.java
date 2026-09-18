@@ -17,6 +17,7 @@
 package com.linecorp.armeria.internal.common.metric;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.when;
 
 import java.lang.ref.Reference;
@@ -146,7 +147,7 @@ class CaffeineMetricSupportTest {
     }
 
     @Test
-    void aggregationAfterGC() throws Exception {
+    void aggregationAfterGC() {
         final MockCache cache1 = new MockCache(1, 2, 3, 4, 5);
         Object cache2 = new MockLoadingCache(6, 7, 8, 9, 10, 11, 12, 13);
         final MeterRegistry registry = PrometheusMeterRegistries.newRegistry();
@@ -170,10 +171,12 @@ class CaffeineMetricSupportTest {
         ticker.addAndGet(CaffeineMetricSupport.UPDATE_INTERVAL_NANOS);
 
         // Ensure the weak reference which held the cache is cleaned up.
-        cache2 = new WeakReference<>(cache2);
-        System.gc();
-        Thread.sleep(1000);
-        assertThat(((Reference<?>) cache2).get()).isNull();
+        final Reference<?> cache2Ref = new WeakReference<>(cache2);
+        cache2 = null;
+        await().untilAsserted(() -> {
+            System.gc();
+            assertThat(cache2Ref.get()).isNull();
+        });
 
         // Check if the counters are not decreased after the second cache is GC'd.
         assertThat(MoreMeters.measureAll(registry))

@@ -30,27 +30,29 @@ import com.google.common.collect.ImmutableList;
 class RefreshingTlsProviderTest {
 
     @Test
-    void shouldRefreshTlsKeyPairPeriodically() throws InterruptedException {
+    void shouldRefreshTlsKeyPairPeriodically() {
         final TlsKeyPair keyPair = TlsKeyPair.ofSelfSigned();
         final AtomicInteger counter = new AtomicInteger();
         final TlsProvider tlsProvider = TlsProvider.ofScheduled(() -> {
             counter.incrementAndGet();
             return keyPair;
         }, Duration.ofSeconds(1));
-        Thread.sleep(2000);
-        assertThat(counter.get()).isGreaterThanOrEqualTo(2);
+        await().untilAsserted(() -> assertThat(counter.get()).isGreaterThanOrEqualTo(2));
         tlsProvider.close();
     }
 
     @Test
-    void shouldReturnKeyTlsKeyPairOnUpdate() throws InterruptedException {
+    void shouldReturnKeyTlsKeyPairOnUpdate() {
         final AtomicInteger counter = new AtomicInteger();
         final TlsProvider tlsProvider = TlsProvider.ofScheduled(() -> {
             counter.incrementAndGet();
             return TlsKeyPair.ofSelfSigned();
         }, Duration.ofSeconds(1));
         final TlsKeyPair initialKeyPair = tlsProvider.keyPair("*");
-        Thread.sleep(2000);
+        await().untilAsserted(() -> {
+            assertThat(counter.get()).isGreaterThanOrEqualTo(2);
+            assertThat(tlsProvider.keyPair("*")).isNotSameAs(initialKeyPair);
+        });
         final TlsKeyPair newKeyPair = tlsProvider.keyPair("*");
         assertThat(counter.get()).isGreaterThanOrEqualTo(2);
         assertThat(newKeyPair).isNotSameAs(initialKeyPair);

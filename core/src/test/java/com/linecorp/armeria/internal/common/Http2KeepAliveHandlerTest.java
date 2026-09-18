@@ -89,7 +89,6 @@ class Http2KeepAliveHandlerTest {
         keepAliveHandler.initialize(ctx);
         when(frameWriter.writePing(any(), eq(false), anyLong(), any())).thenReturn(promise);
 
-        Thread.sleep(pingIntervalMillis * 2);
         await().untilAsserted(() -> assertThat(keepAliveHandler.state()).isEqualTo(PingState.PING_SCHEDULED));
 
         promise.setSuccess();

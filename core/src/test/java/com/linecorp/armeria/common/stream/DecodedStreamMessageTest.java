@@ -145,7 +145,7 @@ class DecodedStreamMessageTest {
     }
 
     @Test
-    void consumeExpectedCount() throws InterruptedException {
+    void consumeExpectedCount() {
         final FixedLengthDecoder decoder = new FixedLengthDecoder(11);
         final StreamMessage<HttpData> stream = new PublisherBasedStreamMessage<>(
                 Flux.just("A012345",
@@ -185,18 +185,13 @@ class DecodedStreamMessageTest {
                 completed.set(true);
             }
         });
-        // Give enough time to subscribe
-        Thread.sleep(1000);
-
+        await().untilAsserted(() -> assertThat(consumed).containsExactly("A0123456789", "B0123456789"));
         assertThat(completed).isFalse();
-        assertThat(consumed).containsExactly("A0123456789", "B0123456789");
         subscriptionRef.get().request(1);
 
-        // Give enough time to subscribe
-        Thread.sleep(1000);
-
+        await().untilAsserted(() -> assertThat(consumed).containsExactly("A0123456789", "B0123456789",
+                                                                        "C0123456789"));
         assertThat(completed).isFalse();
-        assertThat(consumed).containsExactly("A0123456789", "B0123456789", "C0123456789");
         subscriptionRef.get().cancel();
         assertThat(decoder.isReleased()).isTrue();
     }
