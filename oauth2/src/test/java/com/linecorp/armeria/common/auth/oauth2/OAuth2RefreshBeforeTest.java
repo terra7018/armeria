@@ -17,6 +17,7 @@
 package com.linecorp.armeria.common.auth.oauth2;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -89,16 +90,16 @@ class OAuth2RefreshBeforeTest {
         assertThat(grant.getAccessToken().toCompletableFuture().join().accessToken())
                 .isEqualTo("token0");
         // But the refresh should be triggered.
-        Thread.sleep(1000);
-        assertThat(server.requestContextCaptor().size()).isOne();
+        await().untilAsserted(() -> assertThat(server.requestContextCaptor().size()).isOne());
 
         assertThat(grant.getAccessToken().toCompletableFuture().join().accessToken())
                 .isEqualTo("token0");
         // Make sure the refresh is triggered only once.
         assertThat(server.requestContextCaptor().size()).isOne();
         // The refresh response will be sent after 5 seconds.
-        Thread.sleep(5000);
-        assertThat(grant.getAccessToken().toCompletableFuture().join().accessToken())
-                .isEqualTo("token1");
+        await().untilAsserted(() -> {
+            assertThat(grant.getAccessToken().toCompletableFuture().join().accessToken())
+                    .isEqualTo("token1");
+        });
     }
 }
