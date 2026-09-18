@@ -17,13 +17,14 @@
 package com.linecorp.armeria.server.grpc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -107,8 +108,7 @@ class ServerCallListenerCompatibilityTest {
                         }
                     }
                 }
-                // Waits 1 second for events to be fully collected.
-                Thread.sleep(1000);
+                eventCollector.awaitCompletion();
                 if (i == 0) {
                     events = eventCollector.capture();
                 } else {
@@ -141,8 +141,7 @@ class ServerCallListenerCompatibilityTest {
                     final StatusRuntimeException statusException = (StatusRuntimeException) ex;
                     assertThat(statusException.getStatus().getCode()).isEqualTo(Code.RESOURCE_EXHAUSTED);
                 }
-                Thread.sleep(1000);
-                // Waits 1 second for events to be fully collected.
+                eventCollector.awaitCompletion();
                 allEvents.add(eventCollector.capture());
 
                 if (i == 0) {
@@ -198,8 +197,7 @@ class ServerCallListenerCompatibilityTest {
                         }
                     }
                 }
-                // Waits 1 second for events to be fully collected.
-                Thread.sleep(1000);
+                eventCollector.awaitCompletion();
                 allEvents.add(eventCollector.capture());
                 if (i > 0) {
                     if (!hasResponse) {
@@ -258,8 +256,7 @@ class ServerCallListenerCompatibilityTest {
                     final StatusRuntimeException statusException = (StatusRuntimeException) ex;
                     assertThat(statusException.getStatus().getCode()).isEqualTo(Code.RESOURCE_EXHAUSTED);
                 }
-                // Waits 1 second for events to be fully collected.
-                Thread.sleep(1000);
+                eventCollector.awaitCompletion();
 
                 allEvents.add(eventCollector.capture());
             } finally {
@@ -399,7 +396,15 @@ class ServerCallListenerCompatibilityTest {
 
     private static final class ListenerEventCollector implements ServerInterceptor {
 
-        private final Queue<String> eventQueue = new ArrayDeque<>();
+        private final Queue<String> eventQueue = new ConcurrentLinkedQueue<>();
+
+        /**
+         * Waits until the listener has received a terminal event ({@code onComplete} or {@code onCancel}),
+         * after which no further events are expected.
+         */
+        private void awaitCompletion() {
+            await().untilAsserted(() -> assertThat(eventQueue).containsAnyOf("onComplete", "onCancel"));
+        }
 
         private List<String> capture() {
             final List<String> captured = ImmutableList.copyOf(eventQueue);
