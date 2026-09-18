@@ -514,22 +514,24 @@ class RefreshingAddressResolverTest {
             final DnsQuestionWithoutTrailingDot fooWithTrailingDotQuestion =
                     DnsQuestionWithoutTrailingDot.of("foo.com.", A);
             dnsCache.remove(fooWithTrailingDotQuestion);
-            // Wait until the removal event is delivered.
-            Thread.sleep(2000);
-            final CacheEntry fooWithTrailingDotCache3 = cache.getIfPresent("foo.com.");
-            // The address has been refreshed.
-            assertThat(fooWithTrailingDotCache3.address()).isNotSameAs(fooWithTrailingDotCache0.address());
-            assertThat(fooWithTrailingDotCache3.address()).isEqualTo(fooWithTrailingDotCache0.address());
+            // Wait until the removal event is delivered and the address has been refreshed.
+            await().untilAsserted(() -> {
+                final CacheEntry fooWithTrailingDotCache3 = cache.getIfPresent("foo.com.");
+                assertThat(fooWithTrailingDotCache3).isNotNull();
+                assertThat(fooWithTrailingDotCache3.address()).isNotSameAs(fooWithTrailingDotCache0.address());
+                assertThat(fooWithTrailingDotCache3.address()).isEqualTo(fooWithTrailingDotCache0.address());
+            });
 
             final DnsQuestionWithoutTrailingDot fooQuestion =
                     DnsQuestionWithoutTrailingDot.of("foo.com", "foo.com.armeria.dev.", A);
             dnsCache.remove(fooQuestion);
-            // Wait until the removal event is delivered.
-            Thread.sleep(2000);
-            final CacheEntry fooCache3 = cache.getIfPresent("foo.com");
-            // The address has been refreshed.
-            assertThat(fooCache3.address()).isNotSameAs(fooCache0.address());
-            assertThat(fooCache3.address()).isEqualTo(fooCache0.address());
+            // Wait until the removal event is delivered and the address has been refreshed.
+            await().untilAsserted(() -> {
+                final CacheEntry fooCache3 = cache.getIfPresent("foo.com");
+                assertThat(fooCache3).isNotNull();
+                assertThat(fooCache3.address()).isNotSameAs(fooCache0.address());
+                assertThat(fooCache3.address()).isEqualTo(fooCache0.address());
+            });
             group.close();
         }
     }
@@ -650,16 +652,16 @@ class RefreshingAddressResolverTest {
                 await().untilAtomic(removalCounter, Matchers.equalTo(2));
 
                 // Wait for the refresh task to be done.
-                Thread.sleep(2000);
-
-                final CacheEntry newStaticCacheEntry = cache.getIfPresent("static.com.");
-                final CacheEntry newDynamicCacheEntry = cache.getIfPresent("dynamic.com.");
-                assertThat(newStaticCacheEntry.address().getAddress())
-                        .isEqualTo(NetUtil.createByteArrayFromIpAddressString("1.1.1.2"));
-                // New CacheEntry should inherit the original creationTimeNanos
-                assertThat(oldStaticCacheEntry.originalCreationTimeNanos())
-                        .isEqualTo(newStaticCacheEntry.originalCreationTimeNanos());
-                assertThat(newDynamicCacheEntry).isNull();
+                await().untilAsserted(() -> {
+                    final CacheEntry newStaticCacheEntry = cache.getIfPresent("static.com.");
+                    assertThat(newStaticCacheEntry).isNotNull();
+                    assertThat(newStaticCacheEntry.address().getAddress())
+                            .isEqualTo(NetUtil.createByteArrayFromIpAddressString("1.1.1.2"));
+                    // New CacheEntry should inherit the original creationTimeNanos
+                    assertThat(oldStaticCacheEntry.originalCreationTimeNanos())
+                            .isEqualTo(newStaticCacheEntry.originalCreationTimeNanos());
+                    assertThat(cache.getIfPresent("dynamic.com.")).isNull();
+                });
             }
         }
     }
@@ -709,7 +711,7 @@ class RefreshingAddressResolverTest {
                 // Wait for the refresh task to be done.
                 Thread.sleep(2000);
 
-                CacheEntry fooCacheEntry = cache.getIfPresent("foo.com.");
+                final CacheEntry fooCacheEntry = cache.getIfPresent("foo.com.");
                 assertThat(fooCacheEntry.address().getAddress())
                         .isEqualTo(NetUtil.createByteArrayFromIpAddressString("1.1.1.1"));
 
@@ -717,9 +719,7 @@ class RefreshingAddressResolverTest {
                 Thread.sleep(5000);
                 dnsCache.remove(fooQuestion);
                 // Wait for the refresh task to be done.
-                Thread.sleep(2000);
-                fooCacheEntry = cache.getIfPresent("foo.com.");
-                assertThat(fooCacheEntry).isNull();
+                await().untilAsserted(() -> assertThat(cache.getIfPresent("foo.com.")).isNull());
             }
         }
     }
@@ -827,16 +827,14 @@ class RefreshingAddressResolverTest {
                 // DnsCache should not be filled.
                 assertThat(dnsCache.get(fooQuestion)).isNull();
 
-                CacheEntry fooCacheEntry = cache.getIfPresent("foo.com.");
+                final CacheEntry fooCacheEntry = cache.getIfPresent("foo.com.");
                 assertThat(fooCacheEntry.address().getAddress())
                         .isEqualTo(NetUtil.createByteArrayFromIpAddressString("1.1.1.1"));
 
                 // Wait until the refresh timeout passes.
                 Thread.sleep(10000);
                 // Wait for the refresh task to be done.
-                Thread.sleep(2000);
-                fooCacheEntry = cache.getIfPresent("foo.com.");
-                assertThat(fooCacheEntry).isNull();
+                await().untilAsserted(() -> assertThat(cache.getIfPresent("foo.com.")).isNull());
             }
         }
     }
@@ -899,10 +897,11 @@ class RefreshingAddressResolverTest {
                 assertThat(removalCounter).hasValue(0);
 
                 // Wait for the eviction event to be delivered.
-                Thread.sleep(2000);
-                assertThat(cache.estimatedSize()).isEqualTo(2);
-                assertThat(cache.asMap().keySet())
-                        .containsExactlyInAnyOrder("bar.com.", "baz.com.");
+                await().untilAsserted(() -> {
+                    assertThat(cache.estimatedSize()).isEqualTo(2);
+                    assertThat(cache.asMap().keySet())
+                            .containsExactlyInAnyOrder("bar.com.", "baz.com.");
+                });
             }
         }
     }
