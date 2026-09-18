@@ -17,6 +17,7 @@
 package com.linecorp.armeria.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import java.time.Duration;
 
@@ -262,10 +263,9 @@ class ConnectionOutlierDetectionTest {
             client.get(path);
             final ClientRequestContext ctx = captor.get();
             final RequestLog log = ctx.log().whenComplete().join();
-            // Wait for the outlier detection to be performed which is done in the `.whenComplete()` hook.
-            Thread.sleep(10);
+            // The outlier detection is performed in the `.whenComplete()` hook.
             final HttpSession session = HttpSession.get(log.channel());
-            assertThat(session.isAcquirable()).isNotEqualTo(isOutlier);
+            await().untilAsserted(() -> assertThat(session.isAcquirable()).isNotEqualTo(isOutlier));
         }
     }
 
@@ -278,10 +278,9 @@ class ConnectionOutlierDetectionTest {
             ctx.log().whenAvailable(RequestLogProperty.REQUEST_FIRST_BYTES_TRANSFERRED_TIME).join();
             response.abort(exception);
             final RequestLog log = ctx.log().whenComplete().join();
-            // Wait for the outlier detection to be performed which is done in the `.whenComplete()` hook.
-            Thread.sleep(10);
+            // The outlier detection is performed in the `.whenComplete()` hook.
             final HttpSession session = HttpSession.get(log.channel());
-            assertThat(session.isAcquirable()).isNotEqualTo(isOutlier);
+            await().untilAsserted(() -> assertThat(session.isAcquirable()).isNotEqualTo(isOutlier));
         }
     }
 }
